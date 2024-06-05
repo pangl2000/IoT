@@ -1,0 +1,5 @@
+pymongo==4.0.1
+Flask-RESTful==0.3.10
+Flask==2.0.1
+Werkzeug==2.0.1
+requests==2.26.0
