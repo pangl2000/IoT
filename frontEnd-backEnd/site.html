@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html>
+    <head>
+      <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Istok+Web&display=swap">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <style>
+    body {
+        margin: 0;
+        font-family: "Assistant", sans-serif;
+        position: relative;
+        min-height: 100vh;
+        /* background: url('bck0.png') center/cover no-repeat; */
+    }
+    header{
+        background-color: rgb(201, 201, 201);
+    }
+    body::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to bottom, #cfd3cf, #545e50);
+        z-index: -1;
+    }
+    #map{
+        border: 8px;
+        border : 3.5px solid #0b86eb;
+        border-radius: 2%;
+    }
+    .info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding-bottom: 5%;
+        position: relative;
+    }
+    #searchInput{
+        height: 25px;
+        border-radius: 2%;
+    }
+
+#bus-table {
+    background-color: #c0ccd560;
+    border-collapse: collapse;
+    margin-top: 20px; 
+    text-align: left; 
+}
+
+#bus-table th, #bus-table td {
+    border: 1px solid #ddd;
+    /* background-color: rgba(255, 255, 255, 1); */
+
+    padding: 8px;
+}
+
+    
+#content_space {
+    width: 80%; 
+    height: 40px; 
+    text-align: center;
+}
+    #bus-table{
+        visibility: hidden;
+    }
+
+    #enterButton{
+        top:10%;
+        margin: 5px;
+        align-self: right;
+        border: 0.05;
+        border-radius: 10%;
+        border-color: aliceblue;
+        background-color: rgb(235, 223, 217);
+        /* color: #95c56e; */
+    }
+    </style>
+      
+  <title>Bus Stop Monitoring</title>
+  </head>
+  <body>
+      <header>
+          <h3 id="site-name">Bus Stop Monitoring</h3>
+          <div class="buttons-and-tabs">
+              <div class="buttons">
+                  <button class="button">Sign in</button>
+                  <button class="button">subscription</button>
+              </div>
+          
+              <div class="tab-menu">
+                  <a href="#" class="tab">Home</a>
+                  <a href="#" class="tab">About</a>
+                  <a href="#" class="tab">Contact</a>
+                  <a href="#" class="tab">Monitoring</a>
+              </div>
+          </div>
+      </header>
+        <div>
+            <div class="center-container">
+                <div class="map-container" id="map"></div>
+                <div class="dropdown">
+                    <h5>Find the bus information you need</h3>
+                    <div id="search-input-dropdown">
+                        <input type="text" id="searchInput" placeholder="Search...">
+                        <div class="dropdown-content">
+                            <a id="1" href="#" data-value="38.27300585312582, 21.765157239518665">601 Πανεπιστήμιο - Νοσοκομείο</a>
+                            <a id="2" href="#" data-value="38.27300585312582, 21.765157239518665">604 Πανεπιστήμιο - Νοσοκομείο - Ρίο</a>
+                            <a id="3" href="#" data-value="38.27300585312582, 21.765157239518665">605 Πανεπιστήμιο - Νοσοκομείο - Άγ. Βασίλειος - Ρίο</a>
+                        </div><input id="timeinput" type="text" placeholder="Specify time (optional)">
+                    </div>
+                    <button id="enterButton">Enter</button>
+                    <div id="location_checkbox">
+                        <input type="checkbox" class="l1" id="location" onchange="getUserLocation()" name="Read location" value="no">
+                        <label for="location" class="l1"> Read location</label><br>
+                    </div>
+                </div>
+            
+            </div>
+            <div class="info">
+                    <div id="content_space"></div>
+                    <table id="bus-table">
+                        <thead>
+                            <tr>
+                                <!-- <th>Bus Stations</th>
+                                <th>Time schedule</th> -->
+                                <!-- <th>5:35 - 6:00</th>
+                                <th>7:35 - 8:00</th>
+                                <th>10:35 - 11:00</th>
+                                <th>13:35 - 14:00</th>
+                                <th>16:35 - 17:00</th>
+                                <th>19:35 - 20:00</th>
+                                <th>22:35 - 23:00</th> -->
+                            </tr> 
+                        </thead>
+                        <tbody id="bus-table-body"></tbody>
+                    </table>
+            </div>
+        </div>
+
+  </body>
+  <script>
+    let buses = [];
+    let stations = [];
+    let durationList = [];
+    var busStations = {};
+    var busesvar = {};
+    var busvarcount = [];
+    const apiKey = '-';
+    const brokerIP = '150.140.186.118';
+    const brokerPort = 9001;
+    const brokerPath = '/mqtt';
+    const clientId = 'client_' + Math.random().toString(16).substr(2, 100);
+    
+    const client = new Paho.MQTT.Client(brokerIP,brokerPort, clientId);
+    client.debug = true;
+    
+
+    function onConnect() {
+        console.log('Connected to MQTT broker');
+
+        buses.forEach(element => {
+            subscribe("json/busstopmonitoring/"+String(element.crowdflowid));
+            subscribe("json/busstopmonitoring/" + String(element.id));
+        });
+    }
+
+    function subscribe(id, attribute) {
+        const topic = `${id}`;
+        console.log("Subscribing to topic:", topic);
+        client.subscribe(topic);
+    }
+
+    function onFailure(err) {
+        console.error('Failed to connect to MQTT broker:', err.errorMessage);
+    }
+
+    function onConnectionLost(responseObject) {
+        if (responseObject.errorCode !== 0) {
+            console.error('Connection lost:', responseObject.errorMessage);
+        }
+
+    }
+
+    function onMessageArrived(message) {
+        const payload = JSON.parse(message.payloadString);
+        const type= payload.type
+        if (type=="CrowdFlowObserved"){
+            updateCrowdData(message.destinationName, payload);
+        }else if (type=="Vehicle"){
+            updateBusLocation(message.destinationName, payload);
+        }
+    }
+
+    client.onConnectionLost = onConnectionLost;
+    client.onMessageArrived = onMessageArrived;
+    function initMap() {
+        console.log('Map initialized');
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: { lat: 38.24630509364979, lng: 21.735171687989045 },
+            zoom: 14
+        });
+        document.getElementById('map').style.width = '50%';/* '' */
+        //document.getElementById('map').style.border = '3px solid #0040d6'; 
+        infoWindow = new google.maps.InfoWindow();
+
+        var StnmarkerSize = new google.maps.Size(23, 23);
+        var markerSize = new google.maps.Size(42, 42);
+        
+
+        for (var i = 0; i < stations.length; i++) {
+            const location = stations[i].location.value;
+            busStations[i] = new google.maps.Marker({
+                id: stations[i].id,
+                position: { lat:location.coordinates[0], lng:location.coordinates[1] },
+                map: map,
+                title: String(stations[i].name.value),
+                icon: {
+                    url: 'Canberra_Bus_icon.svg.png',
+                    scaledSize: StnmarkerSize
+                }
+            });
+            busStations[i].addListener('click', (function (i, stationId) {
+                return function () {
+                    getStationLastUpdate(i,stationId);
+                    var contentString = '<div id="content">' +
+                        '<h6 id="firstHeading" class="firstHeading">'+busStations[i].title+'</h6>' +
+                        '<p id ="info"></p>' +
+                        '</div>';
+
+                    infoWindow.setContent(contentString);
+                    infoWindow.open(map, busStations[i]);
+                };
+            })(i, busStations[i].id));
+                
+        }
+    }
+
+    function addBusMarkers(i,bus) {
+        var markerSize = new google.maps.Size(42, 42);
+        const location = bus.location.value;
+        const lat = parseFloat(location.coordinates.split(',')[0]);
+        const lng = parseFloat(location.coordinates.split(',')[1]);
+        busvarcount.push(i);
+        busesvar[i] = new google.maps.Marker({
+            id: bus.id,
+            position: new google.maps.LatLng(lat, lng),
+            congested: bus.congested,
+            crowdflowid: bus.crowdflowid,
+            map: map,
+            title: 'Bus ' + String(i + 1),
+            icon: {
+                url: 'pngwing.com.png',
+                scaledSize: markerSize
+            }
+        });
+    }
+
+    function initializetable(time, data){
+        document.getElementById("bus-table").style.visibility = "visible";
+        const tableBody = document.getElementById('bus-table-body');
+
+        tableBody.innerHTML = '';
+        if (time!= null){
+            col=-1;
+            const [hours, minutes] = time.split(':').map(str => parseFloat(str));
+            u = hours + (minutes / 60);
+            
+            if (u>=5 && u<=6.5){
+                col = 1;
+            }else if (u>=7 && u<=8.5){
+                col = 2;
+            }else if (u>=10 && u<=11.5){
+                col = 3;
+            }else if (u>=13 && u<=14.5){
+                col = 4;
+            }else if (u>=16 && u<=17.5){
+                col = 5;
+            }else if (u>=19 && u<=20.5){
+                col = 6;
+            }else if (u>=22 && u<=23.5){
+                col = 7;
+            }else{
+                tableBody.innerHTML="No bus line is close to this hour";
+            }
+
+        }
+        data.forEach(rowData => {
+            const row = document.createElement('tr');
+            
+            if (time!= null && col !=-1){
+                const cellData0 = rowData[0];
+                let cellData = rowData[col];
+                const cell0 = document.createElement('td');
+                const cell = document.createElement('td');
+                cell0.textContent = cellData0;
+                cD = cellData.split(':');
+                cellData = `${cD[0]}:${cD[1]}`;
+                cell.textContent = cellData;
+                row.appendChild(cell0);
+                row.appendChild(cell);
+            }
+            else{
+                i =0;
+                rowData.forEach(cellData => {
+                    const cell = document.createElement('td');
+                    if (i%8 !=0){
+                        cD = cellData.split(':');
+                        cellData = `${cD[0]}:${cD[1]}`;
+                    }
+                    cell.textContent = cellData;
+                    row.appendChild(cell);
+                    i =i+1;
+                });
+                
+            }
+            tableBody.appendChild(row);
+        });
+    }
+
+    async function readexcel(time){
+        try {
+            const response = await fetch(`http://localhost:3000/getalltheroutes`);
+            data = await response.json();
+            initializetable(time,data);
+        } catch (error) {
+            console.error('Error fetching location:', error.message);
+        }
+
+    }
+
+
+    async function handleWindowClick(event) {
+        const dropdownContent = event.target.closest('.dropdown-content');
+        
+        if (dropdownContent) {
+            updateMapFrame((event.target).getAttribute('data-value'), 12.87);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetch('http://127.0.0.1:3000/getBusInfo')
+            .then(response => response.json())
+            .then(data => {
+                buses =data;
+
+            })
+            .catch(error => console.error('Error fetching data:', error));
+
+        fetch('http://127.0.0.1:3000/getStationInfo')
+            .then(response => response.json())
+            .then(data => {
+                initMap(); 
+                stations = data;
+                client.connect({
+                    onSuccess: onConnect,
+                    onFailure: onFailure,
+                    useSSL: false,
+                });
+                initMap(); 
+                
+                
+            })
+            .catch(error => console.error('Error fetching data:', error));
+            
+        window.addEventListener('click', handleWindowClick);
+        const timeinput = document.getElementById('timeinput');
+        const searchInput = document.getElementById('searchInput');
+        const searchInputDropdown = document.getElementById('search-input-dropdown');
+        const dropdownContent = document.querySelector('.dropdown-content');
+        let selectedOption ;
+        let target =null;
+
+        searchInput.addEventListener('input', handleSearchInput);
+        searchInput.addEventListener('mouseover', function () {
+            dropdownContent.style.display = 'block';
+        });
+
+        dropdownContent.addEventListener('click', function (event) {
+            target = event.target;
+            searchInput.value = event.target.textContent.trim();
+            dropdownContent.style.display = 'none'; 
+        });
+        document.addEventListener('mousedown', function (event) {
+            if (!event.target.closest('.dropdown')) {
+                dropdownContent.style.display = 'none'; 
+            }
+        });
+
+        window.addEventListener('mouseout', function (event) {
+            if (!searchInputDropdown.contains(event.target)) {
+                dropdownContent.style.display = 'none';
+            }
+        });
+
+        enterButton.addEventListener('click', async function() {
+            if (target!=null){
+                let time = timeinput.value.trim();
+                if (time==""){
+                    time = null;
+                }
+                
+                await readexcel(time);
+            }
+            
+        });
+    });
+
+    function updateCrowdData(topic, payload){
+        congested = payload.congested.value;
+        name = payload.alternateName.value;
+
+        id = payload.id;
+
+        busesIndex = buses.findIndex(entry => entry.crowdflowid === id);
+        busesvarIndex =-1;
+        for (var i = 0; i < busvarcount.length; i++) {
+            if (busesvar[busvarcount[i]] && busesvar[busvarcount[i]].crowdflowid === id) {
+                busesvarIndex= i;
+            }
+        }
+        if (busesvarIndex!=-1){
+            len =("urn:ngsild:CrowdFlowObserved:Bus:").length;
+            n = (id).slice(len, id.length);
+            index = Number(n-1);
+
+            busesvar[index].congested = congested;
+        }
+        
+    }
+
+    function updateBusLocation (topic, payload){
+        id = payload.id;
+
+        busesIndex = buses.findIndex(entry => entry.id === id);
+        busesvarIndex =-1;
+        for (var i = 0; i < busvarcount.length; i++) {
+            if (busesvar[busvarcount[i]] && busesvar[busvarcount[i]].id === id) {
+                busesvarIndex= i;
+            }
+        }
+        if (busesvarIndex==-1){
+            addBusMarkers(busesIndex,buses[busesIndex]);
+        }
+
+        loc = payload.location.value;
+        const lat = parseFloat((loc.coordinates).split(',')[0]);
+        const lng = parseFloat((loc.coordinates).split(',')[1]);
+        (busesvar[busesIndex]).setPosition(new google.maps.LatLng(lat, lng));
+    }
+        
+
+    function handleSearchInput() {
+        //const searchInput = document.getElementById('searchInput');
+        const filter = searchInput.value.toLowerCase();
+        const dropdownItems = document.querySelectorAll('.dropdown-content a');
+
+        dropdownItems.forEach(function (item) {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(filter) ? 'block' : 'none';
+        });
+    }
+
+
+    async function getStationLastUpdate(i,stationId) {
+        try {
+            const response = await fetch(`http://localhost:3000/getStationsLB?id=${stationId}`);
+            const data = await response.json();
+            text = `Last bus seen: ${data.lastbus.value}. At: ${moment(data.dateTime.value).format('MMMM Do YYYY, HH:mm:ss')}`;
+            d = await findBusandTime([[i, 0]]);
+            if (d!==null){
+                time = d[0][2];
+                text = text +`\n${busesvar[d[0][0]].title} is going to arrive in ${parseInt(time/60)+1} mins`;
+            }
+            document.getElementById("info").innerText = text;
+            
+            //document.getElementById("info").innerText = `Last bus seen: ${data.lastbus.value}. At: ${data.dateTime.value}\n The next bus is going to arrive in ${time}`;
+        } catch (error) {
+            console.error('Error fetching location:', error.message);
+        }
+    }
+
+async function getBusDirection(crowdBusId) {
+    try {
+        const response = await fetch(`http://localhost:3000/getBusDirection?id=${crowdBusId}`);
+        const data = await response.json();
+        return data.value
+    } catch (error) {
+        console.error('Error fetching location:', error.message);
+        return null;
+    }
+}
+
+async function walk_toStation(station,origin, destination) {
+    try {
+        const response = await fetch(`http://localhost:3000/googlemaps?origin=${origin}&destination=${destination}&mode=walking&key=`);
+        const data = await response.json();
+        
+        if (data.status === "OK") {
+            data.routes.forEach((route, index) => {
+                durationList.push([station, data.routes[0].legs[0].duration.value]);
+            })
+    } else {
+        console.error("Error in response:", data.status);
+    }
+    } catch (error) {
+        console.error('Error fetching location:', error.message);
+    }
+}
+
+async function drive_toStation(origin, destination) {
+    try {
+        const response = await fetch(`http://localhost:3000/googlemaps?origin=${origin}&destination=${destination}&mode=driving&key=`);
+        const data = await response.json();
+        const times = [];
+        
+        if (data.status === "OK") {
+            data.routes.forEach((route, index) => {
+                times.push(data.routes[0].legs[0].duration.value);
+            })
+        return Math.min(...times);
+    } else {
+        console.error("Error in response:", data.status);
+        return null;
+    }
+    } catch (error) {
+        console.error('Error fetching location:', error.message);
+        return null;
+    }
+}
+
+    function updateMapFrame(selectedLocation, zoom) {
+        const [lat, lng] = selectedLocation.split(',').map(parseFloat);
+        const newCenter = new google.maps.LatLng(lat, lng);
+        /* const mapUrl = `https://www.google.com/maps/embed/v1/place?q=${selectedLocation}&key=${apiKey}`;
+        document.getElementById("map").src = mapUrl; */
+        map.setCenter(newCenter);
+        map.setZoom(zoom);
+    }
+
+    function getUserLocation() {
+        if (document.getElementById("location").checked) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showPosition, showError);
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+    }
+
+    function showPosition(position) {
+        var latitude = position.coords.latitude;
+        var longitude = position.coords.longitude;
+        origin= `${latitude},${longitude}`;
+        getdestination(origin);
+    }
+
+    async function getdestination(origin){
+        durationList = [];
+        document.getElementById("content_space").innerHTML = "";
+        for (var i = 0; i < stations.length; i++) {
+            await walk_toStation(i, origin, `${busStations[i].getPosition().lat()},${busStations[i].getPosition().lng()}`);
+        }
+        durationList.sort((a, b) => a[1] - b[1]);
+        busesdurs = await findBusandTime(durationList);
+        if (busesdurs !==null){
+            info =  `<h5>In just ${parseInt(busesdurs[0][2]/60)+1 } minutes, you'll be able to board your bus from ${ busStations[busesdurs[0][1]].title } station! </h5>`
+            updateMapFrame(`${busStations[busesdurs[0][1]].getPosition().lat()}, ${busStations[busesdurs[0][1]].getPosition().lng()}`, 20);
+            var contentString = '<div id="content">' +
+                        '<p id ="info" style="border-radius: 5%; height: 2px; background-color: #95c56e; padding: 10px;"><h6 style=" font-size: 10px; ">'+info +'</h6></p>' +
+                        '</div>';
+
+            infoWindow.setContent(contentString);
+            infoWindow.open(map, busStations[busesdurs[0][1]]);
+        }else{
+            document.getElementById("content_space").innerHTML = "No bus is coming";
+        }
+        
+        
+    }
+
+    async function findBusandTime(durationList){
+        const busesdurs = [];
+        for (var i = 0; i < busvarcount.length; i++) {
+            if ( busesvar[busvarcount[i]].congested==false ){
+                lastStation = await getBusDirection(busesvar[busvarcount[i]].crowdflowid);
+
+                let lastStation_location ;
+                let last = 0;
+                for (const station of Object.values(busStations)) {
+                    if (station.title === lastStation) {
+                        lastStation_location = `${station.getPosition().lat()},${station.getPosition().lng()}`
+                        break;
+                    }
+                    last=last+1;
+                }
+
+                ind =durationList[0][0];
+                time1 = await drive_toStation(`${busStations[ind].getPosition().lat()},${busStations[ind].getPosition().lng()}`, `${busesvar[busvarcount[i]].getPosition().lat()},${busesvar[busvarcount[i]].getPosition().lng()}`);
+
+                if(buses[i].description == "601" && last< ind){
+                    j=0;
+                    while (time1<durationList[j][1] && j+1<durationList.length){
+                        j=j+1;
+                        ind =durationList[j][0];
+                        time1 = await drive_toStation(`${busStations[ind].getPosition().lat()},${busStations[ind].getPosition().lng()}`, `${busesvar[busvarcount[i]].getPosition().lat()},${busesvar[busvarcount[i]].getPosition().lng()}`);
+                    }
+                    if (time1>=durationList[j][1]){
+                        busesdurs.push([busvarcount[i],ind, time1]);
+                    }else{
+                        continue;
+                    }
+                }
+            }
+        }
+        if (busesdurs.length!==0){
+            busesdurs.sort((a, b) => a[2] - b[2]);
+            return busesdurs;
+        }
+        else{
+            return null;
+        }
+        
+    }
+    
+    function showError(error) {
+        switch (error.code) {
+            case error.PERMISSION_DENIED:
+                alert("User denied the request for Geolocation.");
+                break;
+            case error.POSITION_UNAVAILABLE:
+                alert("Location information is unavailable.");
+                break;
+            case error.TIMEOUT:
+                alert("The request to get user location timed out.");
+                break;
+            case error.UNKNOWN_ERROR:
+                alert("An unknown error occurred.");
+                break;
+        }
+    }
+  </script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=&callback=initMap&libraries=places,geometry&solution_channel=GMP_QB_commutes_v2_c" async defer></script>
+  </html>

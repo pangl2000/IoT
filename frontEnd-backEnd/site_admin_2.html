@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin front-end</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@100&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Hedvig+Letters+Sans&family=News+Cycle&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+
+    <style>
+        body {
+            font-family: "Sarabun", sans-serif;
+            margin-left: 20px;
+            margin-right: 20px;
+            margin-top: 50px;
+            margin-bottom: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(to bottom, #cccecc, #545e50);
+        }
+        header {
+            background-image: linear-gradient(to right, #cccecc00, #575c6076);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px;
+            padding-bottom: 18px;
+            width: 100%; 
+        }
+
+        #site-name {
+            color: #ffffff;
+            font-size: 30px;
+            font-weight: bold;
+            margin-left: auto;
+            margin-right: 10%;
+        }
+        #firstHeading {
+            font-size: 15px;
+            margin: 0%;
+        }
+        #map-table-container {
+            display: flex;
+            width: 80%;
+            justify-content: space-between;
+            margin-top: 30px;
+            margin-bottom: 70px;
+            align-items: flex-start;
+        }
+
+        .map-container {
+            flex: 1; 
+            max-width: 75%; 
+            height: 400px;
+            margin-right: 5px;
+        }
+
+        #data-table-container {
+            flex: 1; 
+            max-width: 25%; 
+            margin-left: 5px; 
+        }
+
+        #chart-container {
+            position: relative;
+            display: flex;
+            width: 70%;
+            margin: 0 auto; 
+            height: 400px; 
+            margin-bottom: 70px;
+            align-items: flex-start;
+        }
+        #mychart {
+            width: 100%;
+            height: 100%;
+        }
+
+        #data-table {
+            border-collapse: collapse;
+            width: 100%;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        #data-table th, #data-table td {
+            border: 1px solid #ffea00e0;
+            padding: 8px;
+            text-align: left;
+        }
+
+        #data-table td {
+            color: 1px solid #101010;
+            padding: 8px;
+            text-align: left;
+            border: #9d9d9d;
+            font-size: small;
+        }
+
+        #data-table th {
+            background-color: #c3b525e0;
+            color : #373a3f;
+        }
+
+        #warnings-title {
+            color: #4b460ce0;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .custom-infoWindow {
+            background-color: white;
+            border-radius: 5px;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .custom-infoWindow h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .custom-infoWindow p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        #table-body {
+            font-family: 'Hedvig Letters Sans', sans-serif;
+            
+        }
+
+        #front-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.281);
+            z-index: 9999;
+            transform: translateX(-100%);
+            transition: transform 0.5s ease; 
+            display: flex; 
+            overflow-y: auto;
+        }
+
+        #front-layer::-webkit-scrollbar {
+            display: none;
+        }
+
+
+        #historicalStationschart-container, #historicalStationschart-container1{
+            top: 20%;
+            padding-bottom: 15%;
+            position: absolute;
+            left: 42%; 
+            width: 80%; 
+            height: 60%; 
+            /*background-color: rgba(255, 255, 255, 1);   */
+            transform: translateX(-40%); 
+            display: flex;
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center; 
+        }
+
+        #historicalStationschart-container1{
+            top: 80%;
+        }
+        #menu, #menu1 {
+            position: relative;
+            width: 100%;
+            margin-top: 20px;
+        }
+        #dropdown, #menu input, #hourdropdown, #endhourdropdown{
+            background-color: #6b7266;
+        }
+
+        #dropdown1, #menu1 input, #hourdropdown1, #endhourdropdown1{
+            background-color: #666a72;
+        }
+        #enterButton, #enterButton1{
+            background-color: rgb(211, 212, 203);
+            border-color: rgb(211, 212, 203);
+            border-radius: 10%;
+        }
+
+        #chart-background {
+            /* background-color: rgb(0, 98, 255); */
+            background-color: #ffee00;
+            position: relative;
+            margin: auto;
+            margin-top: 20px;
+            height: 40vh;
+            width: 90%;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+
+        #chart-background1 {
+            background-color: rgb(0, 149, 255);
+            position: relative;
+            margin: auto;
+            margin-top: 20px;
+            height: 40vh;
+            width: 90%;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+
+        .chart-title{
+            margin-right: auto;
+            font-weight: bold;
+            color: #eaff00;
+        }
+        #chart1{
+            color: rgb(107, 223, 255);
+        }
+
+        #historicalStationschart {
+            width: 100%; 
+            height: 100%;
+        }
+
+        ::placeholder{
+            color: rgb(143, 148, 140);
+            /* background-color:  rgba(46, 50, 46, 0.777); */
+
+        }
+
+        ::-ms-input-placeholder { /* Edge 12-18 */
+            color: rgb(143, 148, 140);
+        }
+
+        
+    </style>
+</head>
+<body>
+    <header>
+        <h3 id="site-name">Bus Stop Monitoring</h3>
+    </header>
+    <div id="front-layer">    
+        <div id="historicalStationschart-container">
+            <div class = "chart-title"id="chart">Hourly Average Waiting Population at Stations</div>
+            <div id="menu">
+                <select id="dropdown">
+                </select>
+                <input type="text" id="date" placeholder="Starting date (D/M/YYYY)">
+                <select id="hourdropdown">
+                    <option value="-" id ="hour">Starting hour</option>
+                </select>
+                <input type="text" id="enddate" placeholder="Ending date (D/M/YYYY)">
+                <select id="endhourdropdown">
+                    <option value="-" id ="endhour">Ending hour</option>
+                </select>
+                <button id="enterButton">Enter</button>
+            </div>
+            <div id="chart-background" >
+                <canvas id="historicalStationsChart"></canvas>
+            </div>
+        </div>
+        <div id="historicalStationschart-container1">
+            <div class = "chart-title" id="chart1"> Average Daily Collection of People per Station</div>
+            <div id="menu1">
+                <select id="dropdown1">
+                </select>
+                <input type="text" id="date1" placeholder="Starting date (D/M/YYYY)">
+                <select id="hourdropdown1">
+                    <option value="-" id ="hour1">Starting hour</option>
+                </select>
+                <input type="text" id="enddate1" placeholder="Ending date (D/M/YYYY)">
+                <select id="endhourdropdown1">
+                    <option value="-" id ="endhour1">Ending hour</option>
+                </select>
+                <button id="enterButton1">Enter</button>
+            </div>
+            <div id="chart-background1" >
+                <canvas id="historicalBusChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="map-table-container">
+        <div class="map-container" id="map"></div>
+
+        <div id="data-table-container">
+            <h3 id="warnings-title">Warnings</h3>
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th>Element</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+            
+        </div>
+    </div>
+    
+    <div id="chart-container">
+        <canvas id="myChart"></canvas>
+    </div>
+    
+    <script>
+        let buses = [];
+        let stations = [];
+        var busStations = {};
+        var busesvar = {};
+        var busvarcount =0;
+        const brokerIP = '150.140.186.118';
+        const brokerPort = 9001;
+        const brokerPath = '/mqtt';
+        const clientId = 'client_' + Math.random().toString(16).substr(2, 100);
+        
+        const client = new Paho.MQTT.Client(brokerIP,brokerPort, clientId);
+        client.debug = true;
+        
+        async function push_options(){
+            const dropdown = document.getElementById("dropdown");
+            const dropdown1 = document.getElementById("dropdown1");
+            const date = document.getElementById("date");
+            const date1 = document.getElementById("date1");
+            const enddate = document.getElementById("enddate");
+            const enddate1 = document.getElementById("enddate1");
+            const datedropdown = document.getElementById("datedropdown");
+            const datedropdown1 = document.getElementById("datedropdown1");
+            const hourdropdown = document.getElementById("hourdropdown");
+            const hourdropdown1 = document.getElementById("hourdropdown1");
+            const endhourdropdown = document.getElementById("endhourdropdown");
+            const endhourdropdown1 = document.getElementById("endhourdropdown1");
+
+
+            for (i=0; i<stations.length; i++){
+                const option = document.createElement('option');
+                option.value = `urn:ngsild:CrowdFlowObserved:Station:${i+1}`;
+                option.textContent = stations[i].name.value;
+                dropdown.appendChild(option);
+            }
+            
+            for (i=0; i<buses.length; i++){
+                const option = document.createElement('option');
+                option.value = `urn:ngsild:CrowdFlowObserved:Bus:${i+1}`;
+                option.textContent = `Bus ${i+1}`;
+                dropdown1.appendChild(option);
+            }
+
+            for(i=1; i<=23; i++){
+                const option = document.createElement('option');
+                option.value = `${i}`;
+                option.textContent = `${i}`;
+                hourdropdown.appendChild(option);
+                hourdropdown1.appendChild(option.cloneNode(true));
+                endhourdropdown.appendChild(option.cloneNode(true));
+                endhourdropdown1.appendChild(option.cloneNode(true));
+            }
+        }
+
+        function onConnect() {
+            console.log('Connected to MQTT broker');
+            stations.forEach(element => {
+                subscribe("json/busstopmonitoring/" + String(element.crowdflowid.value));
+                subscribe("json/busstopmonitoring/" + String(element.id));
+            });
+
+            buses.forEach(element => {
+                subscribe("json/busstopmonitoring/"+String(element.crowdflowid.value));
+                subscribe("json/busstopmonitoring/" + String(element.id));
+            });
+        }
+
+        function subscribe(id, attribute) {
+            const topic = `${id}`;
+            console.log("Subscribing to topic:", topic);
+            client.subscribe(topic);
+        }
+
+        function onFailure(err) {
+            console.error('Failed to connect to MQTT broker:', err.errorMessage);
+        }
+
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                console.error('Connection lost:', responseObject.errorMessage);
+            }
+
+        }
+
+        function onMessageArrived(message) {
+            const payload = JSON.parse(message.payloadString);
+            const type= payload.type;
+            if(type=="TransportStation"){
+                updateStationData(message.destinationName, payload);
+            }else if (type=="CrowdFlowObserved"){
+                updateCrowdData(message.destinationName, payload);
+            }else if (type=="Vehicle"){
+                updateBusLocation(message.destinationName, payload);
+            }
+        }
+
+        client.onConnectionLost = onConnectionLost;
+        client.onMessageArrived = onMessageArrived;
+        function initMap() {
+            console.log('Map initialized');
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 38.24630509364979, lng: 21.735171687989045 },
+                zoom: 14
+            });
+            document.getElementById('map').style.width = '800px';
+            infoWindow = new google.maps.InfoWindow();
+
+            var markerSize = new google.maps.Size(23, 23);
+            
+
+            for (var i = 0; i < stations.length; i++) {
+                const location = stations[i].location.value;
+                busStations[i] = new google.maps.Marker({
+                    id: stations[i].id,
+                    position: { lat:location.coordinates[0], lng:location.coordinates[1] },
+                    map: map,
+                    title: stations[i].name.value,
+                    icon: {
+                        url: 'Canberra_Bus_icon.svg.png',
+                        scaledSize: markerSize
+                    }
+                });
+                busStations[i].addListener('click', (function (i, stationId) {
+                    return function () {
+                        getStationLastUpdate(i,stationId);
+                        var contentString = '<div id="content">' +
+                            '<h6 id="firstHeading" class="firstHeading">'+busStations[i].title+'</h6>' +
+                            '<p id ="info"></p>' +
+                            '</div>';
+
+                        infoWindow.setContent(contentString);
+                        infoWindow.open(map, busStations[i]);
+                    };
+                })(i, busStations[i].id));
+            }
+            push_options();
+            
+        }
+
+        function addBusMarkers(i,bus) {
+            var markerSize = new google.maps.Size(42, 42);
+            const location = bus.location.value;
+            const lat = parseFloat(location.coordinates.split(',')[0]);
+            const lng = parseFloat(location.coordinates.split(',')[1]);
+            busvarcount += 1;
+            busesvar[i] = new google.maps.Marker({
+                id: bus.id,
+                crowdflowid: bus.crowdflowid.value,
+                position: new google.maps.LatLng(lat, lng) ,
+                map: map,
+                title: 'Bus ' + String(i+1),
+                icon: {
+                    url: 'pngwing.com.png',
+                    scaledSize: markerSize
+                }
+            });
+
+            busesvar[i].addListener('click', (function (i, busId) {
+                return function () {
+                    getbusLastUpdate(busId);
+                    var contentString = '<div class="infoWindow" id="content">' +
+                        '<h6 id="firstHeading" class="firstHeading">Bus'+String(i+1)+'</h6>' +
+                        '<p id ="info"></p>' +
+                        '</div>';
+
+                    infoWindow.setContent(contentString);
+                    infoWindow.open(map, busesvar[i]);
+                };
+            })(i, busesvar[i].id));
+
+            
+        }
+        async function getStationLastUpdate(i,stationId) {
+            try {
+                const response = await fetch(`http://localhost:8080/getStationsLB?id=${stationId}`);
+                const data = await response.json();
+                text = `Last bus seen: ${data.lastbus.value}. At: ${moment(data.dateTime.value).format('MMMM Do YYYY, HH:mm:ss')}`;
+                d = await findBusandTime([[i, 0]]);
+                if (d!==null){
+                    time = d[0][2];
+                    text = text +`\n${busesvar[d[0][0]].title} is going to arrive in ${parseInt(time/60)+1} mins`;
+                }
+                document.getElementById("info").innerText = text;
+                
+                //document.getElementById("info").innerText = `Last bus seen: ${data.lastbus.value}. At: ${data.dateTime.value}\n The next bus is going to arrive in ${time}`;
+            } catch (error) {
+                console.error('Error fetching location:', error.message);
+            }
+        }
+        async function drive_toStation(origin, destination) {
+            try {
+                const response = await fetch(`http://localhost:3000/googlemaps?origin=${origin}&destination=${destination}&mode=driving&key=AIzaSyA8UuMACOY60siOk58pGAyDzmyjhzIOGYk`);
+                const data = await response.json();
+                const times = [];
+                
+                if (data.status === "OK") {
+                    data.routes.forEach((route, index) => {
+                        times.push(data.routes[0].legs[0].duration.value);
+                    })
+                return Math.min(...times);
+            } else {
+                console.error("Error in response:", data.status);
+                return null;
+            }
+            } catch (error) {
+                console.error('Error fetching location:', error.message);
+                return null;
+            }
+        }
+        async function findBusandTime(durationList){
+            const busesdurs = [];
+            for (var i = 0; i < busvarcount.length; i++) {
+                if (busesvar[busvarcount[i]].congested==false){
+                    lastStation = await getBusDirection(busesvar[busvarcount[i]].crowdflowid);
+
+                    let lastStation_location ;
+                    let last = 0;
+                    for (const station of Object.values(busStations)) {
+                        if (station.title === lastStation) {
+                            lastStation_location = `${station.getPosition().lat()},${station.getPosition().lng()}`
+                            break;
+                        }
+                        last=last+1;
+                    }
+
+                    ind =durationList[0][0];
+                    time1 = await drive_toStation(`${busStations[ind].getPosition().lat()},${busStations[ind].getPosition().lng()}`, `${busesvar[busvarcount[i]].getPosition().lat()},${busesvar[busvarcount[i]].getPosition().lng()}`);
+                    if(buses[i].description == "601" && last< ind){
+                        j=0;
+                        while (time1<durationList[j][1] && j+1<durationList.length){
+                            j=j+1;
+                            ind =durationList[j][0];
+                            time1 = await drive_toStation(`${busStations[ind].getPosition().lat()},${busStations[ind].getPosition().lng()}`, `${busesvar[busvarcount[i]].getPosition().lat()},${busesvar[busvarcount[i]].getPosition().lng()}`);
+                        }
+                        if (time1>=durationList[j][1]){
+                            busesdurs.push([i,ind, time1]);
+                        }else{
+                            return null;
+                        }
+                    }
+                }
+            }
+            if (busesdurs.length!==0){
+                busesdurs.sort((a, b) => a[2] - b[2]);
+                return busesdurs;
+            }
+            else{
+                return null;
+            }
+            
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('http://127.0.0.1:8080/getBusInfo')
+                .then(response => response.json())
+                .then(data => {
+                    buses =data;
+
+                })
+                .catch(error => console.error('Error fetching data:', error));
+
+            fetch('http://127.0.0.1:8080/getStationInfo')
+                .then(response => response.json())
+                .then(data => {
+                    stations = data;
+                    client.connect({
+                        onSuccess: onConnect,
+                        onFailure: onFailure,
+                        useSSL: false,
+                    });
+                    initMap(); 
+                    
+                    
+                })
+                .catch(error => console.error('Error fetching data:', error));
+
+                
+            const frontLayer = document.getElementById("front-layer");
+            const chartContainer = document.getElementById("historicalStationschart-container");
+            
+            
+            const dropdown = document.getElementById("dropdown");
+            const dropdown1 = document.getElementById("dropdown1");
+            const date = document.getElementById("date");
+            const date1 = document.getElementById("date1");
+            const enddate = document.getElementById("enddate");
+            const enddate1 = document.getElementById("enddate1");
+            const datedropdown = document.getElementById("datedropdown");
+            const datedropdown1 = document.getElementById("datedropdown1");
+            const hourdropdown = document.getElementById("hourdropdown");
+            const hourdropdown1 = document.getElementById("hourdropdown1");
+            const endhourdropdown = document.getElementById("endhourdropdown");
+            const endhourdropdown1 = document.getElementById("endhourdropdown1");
+            let chart;
+            let chart1;
+            enterButton.addEventListener('click', async function() {
+                // Get selected option value
+                
+                const selectedOption = dropdown.value;
+                const dt = date.value;
+                const endd = enddate.value;
+                const hour = hourdropdown.value;
+                const endhour = endhourdropdown.value;
+                
+                // Clear input fields
+                date.value = '';
+                enddate.value = '';
+                
+                if (chart) {
+                    chart.destroy();
+                }
+                
+                chart = await createChart(selectedOption, dt, endd, hour, endhour);
+            });
+            
+            enterButton1.addEventListener('click', async function() {
+                const selectedOption = dropdown1.value;
+                const dt1 = date1.value;
+                const endd = enddate1.value;
+                const hour = hourdropdown1.value;
+                const endhour = endhourdropdown1.value;
+
+                date1.value = ''; 
+                enddate1.value = '';
+
+                if (chart1) {
+                    chart1.destroy();
+                }
+
+                chart1 = await createChartBuses(selectedOption, dt1, endd, hour, endhour);
+            });
+            
+
+
+            document.addEventListener("mousemove", function(event) {
+                const mouseX = event.clientX;
+                const screenWidth = window.innerWidth;
+                const threshold = 60;
+                const distanceToLeft = mouseX;
+
+                let layerTransform;
+                let layerTransform1;
+                if (distanceToLeft < threshold) {
+                    layerTransform = "translateX(+30%)";
+                } else if ( mouseX * 100 / screenWidth>=75){
+                    layerTransform = "translateX(-100%)";
+                }
+
+                if ((screenWidth - distanceToLeft) < threshold) {
+                    layerTransform1 = "translateX(25%)";
+                } else if ( (screenWidth -mouseX) / screenWidth >= 0.75){
+                    layerTransform1 = "translateX(100%)";
+                }
+
+                frontLayer.style.transform = layerTransform;
+            });
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            const chartCanvas = document.getElementById("historicalStationsChart");
+            let isDragging = false;
+            let copiedChart = null;
+            let offsetX, offsetY;
+
+            document.addEventListener('mousedown', function(event) {
+                if (event.target === chartCanvas) {
+                    isDragging = true;
+                    offsetX = event.clientX - chartCanvas.getBoundingClientRect().left;
+                    offsetY = event.clientY - chartCanvas.getBoundingClientRect().top;
+
+                    copiedChart = chartCanvas.cloneNode(true);
+                    copiedChart.id = "copiedHistoricalStationsChart";
+                    copiedChart.style.position = "fixed";
+                    copiedChart.style.zIndex = "10001";
+                    copiedChart.style.left = event.clientX - offsetX + 'px';
+                    copiedChart.style.top = event.clientY - offsetY + 'px';
+                    document.body.appendChild(copiedChart);
+                }
+            });
+
+            document.addEventListener('mousemove', function(event) {
+                if (isDragging && copiedChart) {
+                    const x = event.clientX - offsetX;
+                    const y = event.clientY - offsetY;
+                    copiedChart.style.left = x + 'px';
+                    copiedChart.style.top = y + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                if (copiedChart) {
+                    copiedChart.remove();
+                    copiedChart = null;
+                }
+            });
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////            
+        });
+        
+        
+        var map;
+        var bus1;
+        //var program = document.getElementById('program');
+        
+        async function getbusLastUpdate(busid) {
+            try {
+                const response = await fetch(`http://localhost:8080/getBusPC?id=${busid}`);
+                const data = await response.json();
+                document.getElementById("info").innerText = `Last update: ${data.lastStation.value} at: At: ${moment(data.dateTime.value['@value']).format('MMMM Do YYYY, HH:mm:ss')}` + "\nPeople Count: " + data.peopleCount.value;
+            } catch (error) {
+                console.error('Error fetching location:', error.message);
+            }
+        }
+            
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx, {
+            type: 'bar', 
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'People Count in station',
+                    data: [],
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)', 
+                    borderWidth: 1, 
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                        x: {
+                            type:'category', 
+                            position: 'bottom',
+                            ticks: {
+                                color: 'rgba(50, 50, 46, 0.777)',
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: 'rgba(50, 50, 46, 0.777)'
+                            }
+                        }
+                    },
+                }
+        });
+        
+
+        
+        const stationDataMap = [];
+
+        function updateCrowdData(topic, payload){
+            
+            peopleCount = payload.peopleCount.value;
+            congested = payload.congested.value;
+            name = payload.alternateName.value;
+            if (name.slice(0, 3) !=="Bus"){
+                console.log("Station crowdflow");
+                existingIndex = stationDataMap.findIndex(entry => entry.name === name);
+                
+                if (existingIndex !== -1) {
+                    const dataIndex = stationDataMap[existingIndex].dataIndex;
+                    myChart.data.datasets[0].data[dataIndex] = peopleCount;
+                    ind= dataIndex;
+                }
+                else{
+                    stationDataMap.push({
+                        name: name,
+                        dataIndex: myChart.data.labels.length,
+                    });
+                    myChart.data.labels.push(name);
+                    myChart.data.datasets[0].data.push(peopleCount); 
+                }
+                myChart.data.datasets[0].backgroundColor = myChart.data.datasets[0].data.map((count) => {
+                    return count > 20 ? 'rgba(224, 11, 11, 0.7)' : 'rgba(75, 192, 192, 0.2)';
+                });
+
+                myChart.data.datasets[0].borderColor = myChart.data.datasets[0].data.map((count) => {
+                    return count > 20 ? 'rgba(224, 11, 11, 1)' : 'rgba(75, 192, 192, 1)';
+                });
+                myChart.update();
+                
+            }else{
+                id = payload.id;
+                busesIndex = buses.findIndex(entry => entry.crowdflowid === id);
+                busesvarIndex =-1;
+                for (var i = 0; i < busvarcount; i++) {
+
+                    if (busesvar[i] && busesvar[i].crowdflowid === id) {
+                        busesvarIndex= i;
+                    }
+                }
+                
+            }
+            if (name.slice(0, 3) !=="Bus" ||(name.slice(0, 3) =="Bus" && busesvarIndex!==-1) ){
+                tableBody = document.getElementById('table-body');
+                existingIndex = Array.from(tableBody.rows).findIndex(entry =>
+                    entry.cells[0].textContent === name && entry.cells[1].textContent === "congested"
+                );
+                if(congested==true && existingIndex === -1){
+                    const newRow = tableBody.insertRow(0);
+                    const cell1 = newRow.insertCell(0);
+                    const cell2 = newRow.insertCell(1);
+                    cell1.textContent = name;
+                    cell2.textContent = "congested";
+                    if (name.slice(0, 3) =="Bus" ){
+                        busesvar[busesvarIndex].setIcon({
+                            url: 'clipart650590.png',
+                            scaledSize: new google.maps.Size(38, 17)
+                        });
+                    }
+                }
+                if (congested==false && existingIndex !== -1){
+                    tableBody.deleteRow(existingIndex);
+                    if (name.slice(0, 3) =="Bus" ){
+                        busesvar[busesvarIndex].setIcon({
+                            url: 'pngwing.com.png',
+                            scaledSize: new google.maps.Size(42, 42)
+                        });
+                    }
+                }
+            }
+            
+        }
+        function updateStationData(topic, payload){
+            stationName = payload.name.value;
+            tableBody = document.getElementById('table-body');
+            const existingIndex = Array.from(tableBody.rows).findIndex(entry =>
+                entry.cells[0].textContent === stationName && entry.cells[1].textContent === "Illegal parking"
+            );
+
+            if(payload.trafficViolation.value!=="_" && existingIndex === -1){
+                const newRow = tableBody.insertRow(0);
+                const cell1 = newRow.insertCell(0);
+                const cell2 = newRow.insertCell(1);
+                cell1.textContent = stationName;
+                cell2.textContent = "Illegal parking";
+            }
+            if (payload.trafficViolation.value == "_" && existingIndex !== -1){
+                tableBody.deleteRow(existingIndex);
+
+            }
+
+        }
+
+        function updateBusLocation (topic, payload){
+            id = payload.id;
+            busesIndex = buses.findIndex(entry => entry.id === id);
+            busesvarIndex =-1;
+            for (var i = 0; i < busvarcount; i++) {
+                if (busesvar[i] && busesvar[i].id === id) {
+                    busesvarIndex= i;
+                }
+            }
+            if (busesvarIndex==-1){
+                addBusMarkers(i,buses[busesIndex]);
+            }
+            loc = payload.location.value;
+            const lat = parseFloat((loc.coordinates).split(',')[0]);
+            const lng = parseFloat((loc.coordinates).split(',')[1]);
+            (busesvar[busesIndex]).setPosition(new google.maps.LatLng(lat, lng)); 
+        }
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                                                            /*Historical Data*/
+
+    async function fetchData(Option, d, endd, hour, endhour, endpoint) {
+        try {
+            const inputs1 = d.split('/');
+            const inputs2 = endd.split('/');
+
+            const url = new URL(`http://localhost:8080/${endpoint}`);
+            url.searchParams.append('id', Option);
+            url.searchParams.append('initYear', inputs1[2]);
+            url.searchParams.append('initMonth', inputs1[1]);
+            url.searchParams.append('initDay', inputs1[0]);
+            url.searchParams.append('initHour', hour);
+            url.searchParams.append('endYear', inputs2[2]);
+            url.searchParams.append('endMonth', inputs2[1]);
+            url.searchParams.append('endDay', inputs2[0]);
+            url.searchParams.append('endHour', endhour);
+            
+            const response = await fetch(url);
+            const data = await response.json();
+
+            return data;
+             } catch (error) {
+            console.error('Error fetching data:', error);
+            } 
+        }
+  
+
+        async function createChart(selectedOption,  d, endd, hour, endhour) {
+            const data = await fetchData(selectedOption, d, endd, hour, endhour, 'getDataByTime');
+        
+            const xValues = data.xValues.map(dateString => moment(dateString));
+        
+            const ctx = document.getElementById('historicalStationsChart').getContext('2d');
+            const myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: xValues,
+                datasets: [{
+                label: 'Data Values',
+                data: data.yValues,
+                borderColor: 'rgb(75, 192, 192, 0.2)',
+                borderWidth: 2,
+                fill: false,
+                }],
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        position: 'bottom',
+                    },
+                    y: {
+                        beginAtZero: true,
+                    }
+                },
+            }
+            });
+            
+            const chartbackground = document.getElementById("chart-background");
+            
+            chartbackground.style.width = myChart.width;
+
+            return myChart;
+        }
+
+    
+        async function createChartBuses(selectedOption, d, endd, hour, endhour) {
+            const data2 = await fetchData(selectedOption, d, endd, hour, endhour,'getDataAvgPeopleByTime');
+
+            const xValues2 = data2.xValues2;
+
+            const ctx2 = document.getElementById('historicalBusChart').getContext('2d');
+            const mySecondChart = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: xValues2,
+                datasets: [{
+                label: 'Average people collected per station',
+                data: data2.yValues2,
+                borderColor: 'rgb(192, 75, 192, 0.2)',
+                borderWidth: 2,
+                fill: false,
+                }],
+            },
+            options: {
+                scales: {
+                        x: {
+                            type:'category', 
+                            position: 'bottom',
+                        },
+                        y: {
+                            beginAtZero: true,
+                        }
+                    },
+                }
+            });
+
+            return mySecondChart;
+        }
+
+
+    </script>
+    
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA8UuMACOY60siOk58pGAyDzmyjhzIOGYk&callback=initMap&libraries=places,geometry&solution_channel=GMP_QB_commutes_v2_c" async defer></script>
+    </body>
+</html>
+    
